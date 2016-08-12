@@ -7,7 +7,7 @@
 -- under the terms of the MIT license. See LICENSE for details.
 --
 
-local json = { _version = "0.1.0" }
+local json = { _version = "0.1.0", PRETTY_PRINT = true }
 
 -------------------------------------------------------------------------------
 -- Encode
@@ -35,13 +35,22 @@ local function escape_char(c)
   return escape_char_map[c] or string.format("\\u%04x", c:byte())
 end
 
+local ident_cache = {}
+local function s_ident(n)
+  if not ident_cache[n] then
+    local r = {}
+    for _ = 1, n do r[#r+1] = "  " end
+    ident_cache[n] = table.concat(r)
+  end
+  return ident_cache[n]
+end
 
-local function encode_nil(val)
+local function encode_nil()
   return "null"
-end 
+end
 
 
-local function encode_table(val, stack)
+local function encode_table(val, stack, ident)
   local res = {}
   stack = stack or {}
 
@@ -63,7 +72,7 @@ local function encode_table(val, stack)
       error("invalid table: sparse array")
     end
     -- Encode
-    for i, v in ipairs(val) do
+    for _, v in ipairs(val) do
       table.insert(res, encode(v, stack))
     end
     stack[val] = nil
@@ -75,10 +84,23 @@ local function encode_table(val, stack)
       if type(k) ~= "string" then
         error("invalid table: mixed or invalid key types")
       end
-      table.insert(res, encode(k, stack) .. ":" .. encode(v, stack))
+      if ident then
+        v = encode(v, stack, ident + 1)
+      else
+        v = encode(v, stack)
+      end
+      table.insert(res, encode(k, stack) .. ":" .. v)
     end
     stack[val] = nil
-    return "{" .. table.concat(res, ",") .. "}"
+    if ident then
+      return table.concat {
+        "{\n", s_ident(ident + 1),
+        table.concat(res, ",\n" .. s_ident(ident + 1)),
+        "\n", s_ident(ident), "}"
+      }
+    else
+      return "{" .. table.concat(res, ",") .. "}"
+    end
   end
 end
 
@@ -106,18 +128,19 @@ local type_func_map = {
 }
 
 
-encode = function(val, stack)
+encode = function(val, stack, ident)
   local t = type(val)
   local f = type_func_map[t]
   if f then
-    return f(val, stack)
+    return f(val, stack, ident)
   end
   error("unexpected type '" .. t .. "'")
 end
 
 
-function json.encode(val)
-  return ( encode(val) )
+function json.encode(val, pretty)
+  if ident == nil then pretty = json.PRETTY_PRINT end
+  return ( encode(val, nil, pretty and 0 or nil) )
 end
 
 
