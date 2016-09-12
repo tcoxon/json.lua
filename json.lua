@@ -35,6 +35,10 @@ local function escape_char(c)
   return escape_char_map[c] or string.format("\\u%04x", c:byte())
 end
 
+local function encode_nil()
+  return "null"
+end
+
 local ident_cache = {}
 local function s_ident(n)
   if not ident_cache[n] then
@@ -45,10 +49,17 @@ local function s_ident(n)
   return ident_cache[n]
 end
 
-local function encode_nil()
-  return "null"
+local function complex_ident(val, ident, left, right)
+  if ident then
+    return table.concat {
+      left, "\n", s_ident(ident + 1),
+      table.concat(val, ",\n" .. s_ident(ident + 1)),
+      "\n", s_ident(ident), right
+    }
+  else
+    return left .. table.concat(val, ",") .. right
+  end
 end
-
 
 local function encode_table(val, stack, ident)
   local res = {}
@@ -71,36 +82,25 @@ local function encode_table(val, stack, ident)
     if n ~= #val then
       error("invalid table: sparse array")
     end
-    -- Encode
+    -- Encode. We ident only if the first element is an array.
+    local must_ident = ident and type(val[1]) == "table"
     for _, v in ipairs(val) do
-      table.insert(res, encode(v, stack))
+      v = encode(v, stack, must_ident and ident + 1)
+      table.insert(res, v)
     end
     stack[val] = nil
-    return "[" .. table.concat(res, ",") .. "]"
-
+    return complex_ident(res, must_ident and ident, "[", "]")
   else
     -- Treat as an object
     for k, v in pairs(val) do
       if type(k) ~= "string" then
         error("invalid table: mixed or invalid key types")
       end
-      if ident then
-        v = encode(v, stack, ident + 1)
-      else
-        v = encode(v, stack)
-      end
+      v = encode(v, stack, ident and ident + 1)
       table.insert(res, encode(k, stack) .. ":" .. v)
     end
     stack[val] = nil
-    if ident then
-      return table.concat {
-        "{\n", s_ident(ident + 1),
-        table.concat(res, ",\n" .. s_ident(ident + 1)),
-        "\n", s_ident(ident), "}"
-      }
-    else
-      return "{" .. table.concat(res, ",") .. "}"
-    end
+    return complex_ident(res, ident, "{", "}")
   end
 end
 
