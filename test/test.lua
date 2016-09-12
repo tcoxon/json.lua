@@ -1,5 +1,5 @@
 
-local json = loadfile("../json.lua")()
+local json = assert(loadfile("../json.lua"))()
 
 
 local fmt = string.format
