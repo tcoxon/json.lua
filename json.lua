@@ -139,7 +139,7 @@ end
 
 
 function json.encode(val, pretty)
-  if ident == nil then pretty = json.PRETTY_PRINT end
+  if pretty == nil then pretty = json.PRETTY_PRINT end
   return ( encode(val, nil, pretty and 0 or nil) )
 end
 
