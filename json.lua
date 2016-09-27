@@ -61,17 +61,9 @@ local function complex_ident(val, ident, left, right)
   end
 end
 
-local function encode_table(val, stack, ident)
-  local res = {}
-  stack = stack or {}
-
-  -- Circular reference?
-  if stack[val] then error("circular reference") end
-
-  stack[val] = true
-
+function json.should_treat_as_array(val)
   if val[1] ~= nil or next(val) == nil then
-    -- Treat as array -- check keys are valid and it is not sparse
+    -- check keys are valid and it is not sparse
     local n = 0
     for k in pairs(val) do
       if type(k) ~= "number" then
@@ -82,6 +74,28 @@ local function encode_table(val, stack, ident)
     if n ~= #val then
       error("invalid table: sparse array")
     end
+    return true
+  else
+    return false
+  end
+end
+
+function json.object_key_to_string(k)
+  if type(k) ~= "string" then
+    error("invalid table: mixed or invalid key types")
+  end
+  return k
+end
+
+local function encode_table(val, stack, ident)
+  local res = {}
+
+  -- Circular reference?
+  if stack[val] then error("circular reference") end
+
+  stack[val] = true
+
+  if json.should_treat_as_array(val) then
     -- Encode. We ident only if the first element is an array.
     local must_ident = ident and type(val[1]) == "table"
     for _, v in ipairs(val) do
@@ -93,9 +107,7 @@ local function encode_table(val, stack, ident)
   else
     -- Treat as an object
     for k, v in pairs(val) do
-      if type(k) ~= "string" then
-        error("invalid table: mixed or invalid key types")
-      end
+      k = json.object_key_to_string(k)
       v = encode(v, stack, ident and ident + 1)
       table.insert(res, encode(k, stack) .. ":" .. v)
     end
@@ -140,7 +152,7 @@ end
 
 function json.encode(val, pretty)
   if pretty == nil then pretty = json.PRETTY_PRINT end
-  return ( encode(val, nil, pretty and 0 or nil) )
+  return ( encode(val, {}, pretty and 0 or nil) )
 end
 
 
