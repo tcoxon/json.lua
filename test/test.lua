@@ -43,6 +43,9 @@ test("numbers", function()
     [ "0"             ] = 0,
     [ "0.10000000012" ] = 0.10000000012,
   }
+  if _VERSION == "Lua 5.3" then
+    t["183163344413760794"] = 183163344413760794
+  end
   for k, v in pairs(t) do
     local res = json.decode(k)
     assert( res == v, fmt("expected '%s', got '%s'", k, res) )
