@@ -186,8 +186,11 @@ local literal_map = {
 
 
 local function next_char(str, idx, set, negate)
+  local comment = false
   for i = idx, #str do
-    if set[str:sub(i, i)] ~= negate then
+    if comment or str:sub(i, i+1) == "//" then
+      comment = str:sub(i,i) ~= "\n"
+    elseif set[str:sub(i, i)] ~= negate then
       return i
     end
   end

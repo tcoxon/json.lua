@@ -238,4 +238,15 @@ test("encode escape", function()
   end
 end)
 
-
+test("decode comments", function()
+  local t = {
+    [ '// foo\n[1, 2, 3, //bar\n4, 5, 6]//baz'            ] = {1, 2, 3, 4, 5, 6},
+    [ '[1, 2, 3, //foo\n"hello"]'            ] = {1, 2, 3, "hello"},
+    [ '{ //foo\n"name"//bar\n: //baz\n"test"//foo2\n, "id": 231 }' ] = {name = "test", id = 231},
+    [ '{"x":1,"y":2,"z":[1,//foo\n2,3]}'     ] = {x = 1, y = 2, z = {1, 2, 3}},
+  }
+  for k, v in pairs(t) do
+    local res = json.decode(k)
+    assert( equal(res, v), fmt("'%s' did not equal expected", k) )
+  end
+end)
